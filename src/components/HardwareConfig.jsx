@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatNumber } from '../utils/calculations';
+import { formatCurrency, formatNumber } from '../utils/calculations';
 import {
   Select,
   SelectContent,
@@ -36,9 +36,9 @@ export default function HardwareConfig({ type, model, onModelChange, results, ic
         {results && (
           <div className="space-y-2">
             <p className="text-sm">Tokens/Second: {formatNumber(results.tokensPerSecond)}</p>
-            <p className="text-sm">Power Cost: ${formatNumber(results.powerCost)}</p>
-            <p className="text-sm">Hardware Cost: ${formatNumber(results.hardwareCost)}</p>
-            <p className="text-sm">Cost per Token: ${formatNumber(results.costPerToken)}</p>
+            <p className="text-sm">Power Cost: {formatCurrency(results.powerCost)}</p>
+            <p className="text-sm">Hardware Cost: {formatCurrency(results.hardwareCost)}</p>
+            <p className="text-sm">Cost per Token: {formatCurrency(results.costPerToken)}</p>
           </div>
         )}
       </div>

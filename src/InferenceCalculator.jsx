@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Monitor, Cpu } from 'lucide-react';
 import HardwareConfig from './components/HardwareConfig';
 import { PerformanceChart, BreakEvenChart } from './components/ComparisonCharts';
-import { calculateMetrics } from './utils/calculations';
+import { calculateMetrics, generateComparisonData, generateBreakEvenData } from './utils/calculations';
 
 const POWER_COST = 0.12; // USD per kWh
 
@@ -91,51 +91,28 @@ const formatNumber = (num) => {
 export default function InferenceCalculator() {
   const [cpuModel, setCpuModel] = useState('');
   const [gpuModel, setGpuModel] = useState('');
-  const [timeHorizonHours, setTimeHorizonHours] = useState(1);
+  const [utilizationHours, setUtilizationHours] = useState(24); // Hours per day
+  const [timeHorizonMonths, setTimeHorizonMonths] = useState(24);
   const [cpuResults, setCpuResults] = useState(null);
   const [gpuResults, setGpuResults] = useState(null);
   const [comparisonData, setComparisonData] = useState([]);
   const [breakEvenData, setBreakEvenData] = useState([]);
 
   useEffect(() => {
-    const cpuMetrics = calculateMetrics(cpuModel, 'cpu', timeHorizonHours, HARDWARE_SPECS);
-    const gpuMetrics = calculateMetrics(gpuModel, 'gpu', timeHorizonHours, HARDWARE_SPECS);
-    
-    setCpuResults(cpuMetrics);
-    setGpuResults(gpuMetrics);
+    // Calculate daily utilization hours for performance metrics
+    if (cpuModel && gpuModel) {
+      const cpuMetrics = calculateMetrics(cpuModel, 'cpu', utilizationHours, HARDWARE_SPECS);
+      const gpuMetrics = calculateMetrics(gpuModel, 'gpu', utilizationHours, HARDWARE_SPECS);
+      
+      setCpuResults(cpuMetrics);
+      setGpuResults(gpuMetrics);
 
-    if (cpuMetrics && gpuMetrics) {
-      setComparisonData([
-        {
-          metric: 'Tokens/Second',
-          CPU: cpuMetrics.tokensPerSecond,
-          GPU: gpuMetrics.tokensPerSecond,
-        },
-        {
-          metric: 'Cost/Token',
-          CPU: cpuMetrics.costPerToken,
-          GPU: gpuMetrics.costPerToken,
-        },
-        {
-          metric: 'Tokens/Watt',
-          CPU: cpuMetrics.tokensPerWatt,
-          GPU: gpuMetrics.tokensPerWatt,
-        },
-      ]);
-
-      const breakEvenPoints = Array.from({length: 12}, (_, i) => {
-        const hours = (i + 1) * 730; // Monthly intervals
-        const cpuData = calculateMetrics(cpuModel, 'cpu', hours, HARDWARE_SPECS);
-        const gpuData = calculateMetrics(gpuModel, 'gpu', hours, HARDWARE_SPECS);
-        return {
-          months: i + 1,
-          CPU: cpuData?.totalCost || 0,
-          GPU: gpuData?.totalCost || 0,
-        };
-      });
-      setBreakEvenData(breakEvenPoints);
+      if (cpuMetrics && gpuMetrics) {
+        setComparisonData(generateComparisonData(cpuMetrics, gpuMetrics));
+        setBreakEvenData(generateBreakEvenData(cpuMetrics, gpuMetrics, timeHorizonMonths, utilizationHours));
+      }
     }
-  }, [cpuModel, gpuModel, timeHorizonHours]);
+  }, [cpuModel, gpuModel, utilizationHours, timeHorizonMonths]);
 
   return (
     <div className="w-full max-w-7xl mx-auto p-4 space-y-6">
@@ -162,20 +139,31 @@ export default function InferenceCalculator() {
       </div>
 
       <div className="w-full max-w-xs mx-auto p-6 bg-white rounded-lg shadow-lg">
-        <label className="block text-sm font-medium mb-1">Time Horizon (hours)</label>
-        <input
-          type="number"
-          value={timeHorizonHours}
-          onChange={(e) => setTimeHorizonHours(Number(e.target.value))}
-          min="1"
-          className="w-full px-3 py-2 border rounded-md"
-        />
+        <label className="block text-sm font-medium mb-1">Daily Utilization (hours)</label>
+        <div className="flex items-center space-x-2">
+          <input
+            type="range"
+            min="1"
+            max="24"
+            value={utilizationHours}
+            onChange={(e) => setUtilizationHours(Number(e.target.value))}
+            className="flex-1"
+          />
+          <span className="text-sm font-medium w-12">{utilizationHours}h</span>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          How many hours per day will the hardware be running inferences?
+        </p>
       </div>
 
       {comparisonData.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <PerformanceChart data={comparisonData} />
-          <BreakEvenChart data={breakEvenData} />
+          <PerformanceChart data={comparisonData} utilizationHours={utilizationHours} />
+          <BreakEvenChart 
+            data={breakEvenData} 
+            onTimeRangeChange={setTimeHorizonMonths}
+            utilizationHours={utilizationHours}
+          />
         </div>
       )}
     </div>
