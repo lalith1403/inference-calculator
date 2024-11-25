@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { HardwareConfig } from './components/HardwareConfig';
 import { PerformanceChart, BreakEvenChart } from './components/ComparisonCharts';
@@ -11,6 +11,18 @@ export default function InferenceCalculator() {
   const [selectedGPU, setSelectedGPU] = useState('');
   const [utilizationHours, setUtilizationHours] = useState(12);
   const [timeRange, setTimeRange] = useState(24);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkIfMobile();
+    window.addEventListener('resize', checkIfMobile);
+
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
 
   const cpuMetrics = selectedCPU ? calculateMetrics(selectedCPU, 'cpu', utilizationHours, HARDWARE_SPECS) : null;
   const gpuMetrics = selectedGPU ? calculateMetrics(selectedGPU, 'gpu', utilizationHours, HARDWARE_SPECS) : null;
@@ -20,6 +32,17 @@ export default function InferenceCalculator() {
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-blue-950 via-blue-800 to-blue-600 p-4 font-inter">
+      {isMobile && (
+        <div className="fixed inset-0 z-50 bg-blue-950/95 flex items-center justify-center p-6">
+          <div className="text-center space-y-4">
+            <h3 className="text-xl font-bold text-blue-50">Please Use Desktop Version</h3>
+            <p className="text-blue-200 text-sm">
+              This calculator is optimized for larger screens. Please visit us on a desktop or laptop for the best experience.
+            </p>
+            <div className="animate-bounce text-blue-300 text-4xl">💻</div>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="bg-blue-900/20 backdrop-blur-xl rounded-2xl shadow-2xl border border-blue-700/20 p-6">
           <h2 className="text-2xl font-bold text-blue-50 mb-2 tracking-tight font-display">Hardware Inference Calculator</h2>
