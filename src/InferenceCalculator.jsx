@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { HardwareConfig } from './components/HardwareConfig';
 import { PerformanceChart, BreakEvenChart } from './components/ComparisonCharts';
+import { TokenCosts } from './components/TokenCosts';
 import { calculateMetrics, generateComparisonData, generateBreakEvenData } from './utils/calculations';
 import { HARDWARE_SPECS } from './constants/hardware';
 
@@ -67,6 +68,11 @@ export default function InferenceCalculator() {
             <BreakEvenChart 
               data={breakEvenData} 
               onTimeRangeChange={setTimeRange}
+              utilizationHours={utilizationHours}
+            />
+            <TokenCosts
+              selectedCPU={selectedCPU}
+              selectedGPU={selectedGPU}
               utilizationHours={utilizationHours}
             />
           </>

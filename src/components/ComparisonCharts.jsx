@@ -49,35 +49,22 @@ const InsightsBox = ({ data }) => {
       description: "GPU throughput compared to CPU",
       icon: "⚡"
     },
-    {
-      title: "Cost Efficiency",
-      value: `${((data[2]?.GPU / data[2]?.CPU) || 0).toFixed(1)}x`,
-      description: "Better cost per token ratio with GPU",
-      icon: "💰"
-    },
-    {
-      title: "Power Efficiency",
-      value: `${((data[1]?.GPU / data[1]?.CPU) || 0).toFixed(1)}x`,
-      description: "More tokens processed per watt with GPU",
-      icon: "🔋"
-    }
   ];
 
   return (
-    <div className="mt-6 grid grid-cols-3 gap-4">
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
       {insights.map((insight, index) => (
-        <motion.div
-          key={insight.title}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
-          className="bg-blue-900/20 backdrop-blur-sm rounded-xl p-4 border border-blue-800/30"
+        <div
+          key={index}
+          className="bg-blue-900/30 rounded-xl responsive-p flex flex-col gap-2 backdrop-blur-sm"
         >
-          <div className="text-2xl mb-2">{insight.icon}</div>
-          <h4 className="text-blue-100 font-semibold mb-1">{insight.title}</h4>
-          <div className="text-2xl font-bold text-blue-50 mb-2">{insight.value}</div>
-          <p className="text-sm text-blue-200">{insight.description}</p>
-        </motion.div>
+          <div className="flex items-center justify-between">
+            <h3 className="text-blue-200 responsive-text font-semibold">{insight.title}</h3>
+            <span className="text-2xl">{insight.icon}</span>
+          </div>
+          <p className="text-blue-50 responsive-heading">{insight.value}</p>
+          <p className="text-blue-300 text-sm">{insight.description}</p>
+        </div>
       ))}
     </div>
   );
@@ -161,11 +148,8 @@ export function PerformanceChart({ data }) {
 
   return (
     <motion.div className="space-y-6">
-      <div className="relative bg-blue-950/60 backdrop-blur-xl rounded-2xl p-6 border border-blue-800/30 shadow-lg">
-        <h3 className="text-xl font-semibold text-blue-50 mb-4 font-display tracking-tight">
-          Performance Comparison
-        </h3>
-        
+      <div className="relative bg-blue-900/20 rounded-2xl responsive-p backdrop-blur-sm">
+        <h2 className="responsive-heading text-blue-50 mb-8">Performance Comparison</h2>
         <div className="flex gap-16">
           {/* Chart Section */}
           <div className="w-[500px] flex-shrink-0">
@@ -344,38 +328,10 @@ export function BreakEvenChart({ data, utilizationHours }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="bg-blue-950/60 backdrop-blur-xl rounded-2xl p-6 border border-blue-800/30 shadow-lg"
+      className="bg-blue-900/20 rounded-2xl responsive-p backdrop-blur-sm"
     >
-      <div className="flex justify-between items-start mb-6">
-        <h3 className="text-xl font-semibold text-blue-50 font-display tracking-tight">
-          Break-Even Analysis & Revenue Projection
-        </h3>
-        
-        {/* Updated Break-even widget */}
-        <div className="bg-blue-900/40 backdrop-blur-sm rounded-xl p-4 border border-blue-800/30">
-          <div className="text-center mb-2">
-            <span className="text-sm text-blue-200">Break-Even Duration</span>
-          </div>
-          <div className="flex items-center justify-center gap-8">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: chartColors.GPU.primary }}></div>
-                <span className="text-sm text-blue-100">GPU</span>
-              </div>
-              <span className="text-lg font-bold text-blue-50">{gpuBreakEvenPoint + 1} months</span>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: chartColors.CPU.primary }}></div>
-                <span className="text-sm text-blue-100">CPU</span>
-              </div>
-              <span className="text-lg font-bold text-blue-50">{cpuBreakEvenPoint + 1} months</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="h-[400px]"> {/* Reduced height */}
+      <h2 className="responsive-heading text-blue-50 mb-8">Cost Analysis</h2>
+      <div className="h-[300px] sm:h-[400px] lg:h-[500px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chartData}
