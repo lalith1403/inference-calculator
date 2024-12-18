@@ -4,6 +4,7 @@ import { HARDWARE_SPECS, POWER_COST } from '../constants/hardware';
 
 export function TokenCosts({ selectedCPU, selectedGPU, utilizationHours }) {
   const [activeTab, setActiveTab] = useState('comparison');
+  const [showChartInfo, setShowChartInfo] = useState(false);
   
   const calculateTokenCost = (hardware, type) => {
     if (!hardware) return null;
@@ -28,10 +29,68 @@ export function TokenCosts({ selectedCPU, selectedGPU, utilizationHours }) {
   const cpuMetrics = selectedCPU ? calculateTokenCost(selectedCPU, 'cpu') : null;
   const gpuMetrics = selectedGPU ? calculateTokenCost(selectedGPU, 'gpu') : null;
 
-  const maxTokensPerHour = Math.max(
-    cpuMetrics?.tokensPerHour || 0,
-    gpuMetrics?.tokensPerHour || 0
-  );
+  // Normalize values and calculate maximums
+  const normalizeValue = (value, max) => {
+    if (!max || max === 0) return 0;
+    return Math.min(Math.max(value / max, 0), 1);
+  };
+
+  const maxEfficiency = Math.max(cpuMetrics?.efficiency || 0, gpuMetrics?.efficiency || 0);
+  const maxTokensPerHour = Math.max(cpuMetrics?.tokensPerHour || 0, gpuMetrics?.tokensPerHour || 0);
+  const maxCostPerToken = Math.max(cpuMetrics?.costPerToken || 0, gpuMetrics?.costPerToken || 0);
+  const maxTDP = Math.max(cpuMetrics?.tdp || 0, gpuMetrics?.tdp || 0);
+
+  const generateRadarPoints = (metrics, centerX, centerY, radius) => {
+    if (!metrics || Object.values(metrics).some(v => v === undefined || v === null)) {
+      return '';
+    }
+
+    // Pre-calculate normalized values with proper scaling
+    const values = [
+      // Efficiency (higher is better)
+      normalizeValue(metrics.efficiency, maxEfficiency),
+      // Speed (higher is better)
+      normalizeValue(metrics.tokensPerHour, maxTokensPerHour),
+      // Cost (lower is better, so we use inverse scaling)
+      1 - (metrics.costPerToken / maxCostPerToken),
+      // Power (lower is better, so we use inverse scaling)
+      1 - (metrics.tdp / maxTDP)
+    ];
+
+    // Calculate vertices with proper angle distribution
+    const points = values.map((value, i) => {
+      // Start from top (π/2) and go clockwise
+      const angle = (Math.PI * 2 * i / 4) + (Math.PI / 2);
+      const scaledRadius = value * radius;
+      return [
+        centerX + scaledRadius * Math.cos(angle),
+        centerY - scaledRadius * Math.sin(angle)
+      ];
+    });
+
+    // Generate SVG path
+    return `M ${points[0][0]} ${points[0][1]} ` +
+           points.slice(1).map(([x, y]) => `L ${x} ${y}`).join(' ') +
+           ` L ${points[0][0]} ${points[0][1]}`;
+  };
+
+  const renderGridLines = (centerX, centerY, maxRadius) => {
+    const scales = [0.25, 0.5, 0.75, 1];
+    return scales.map((scale, index) => {
+      const points = [];
+      for (let i = 0; i < 4; i++) {
+        const angle = (Math.PI * 2 * i / 4) + (Math.PI / 2);
+        const radius = maxRadius * scale;
+        points.push([
+          centerX + radius * Math.cos(angle),
+          centerY - radius * Math.sin(angle)
+        ]);
+      }
+      return `M ${points[0][0]} ${points[0][1]} ` +
+             points.slice(1).map(([x, y]) => `L ${x} ${y}`).join(' ') +
+             ` L ${points[0][0]} ${points[0][1]}`;
+    });
+  };
 
   const tabs = [
     { id: 'comparison', label: 'Visual Comparison' },
@@ -165,41 +224,130 @@ export function TokenCosts({ selectedCPU, selectedGPU, utilizationHours }) {
         >
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20 rounded-xl blur-xl" />
           <div className="relative bg-black/20 rounded-xl p-8 backdrop-blur-xl border border-white/10">
-            <h3 className="text-2xl font-bold text-white mb-8">Performance Analysis</h3>
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-3">
+                <h3 className="text-2xl font-bold text-white">Performance Analysis</h3>
+                <button
+                  onClick={() => setShowChartInfo(true)}
+                  className="p-2 rounded-full hover:bg-blue-800/30 transition-colors"
+                >
+                  <svg className="w-5 h-5 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Info Modal */}
+            {showChartInfo && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-blue-950/80 backdrop-blur-sm"
+                onClick={() => setShowChartInfo(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-blue-900/90 rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto border border-blue-700/50"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-xl font-bold text-blue-50">Understanding the Performance Radar</h4>
+                    <button
+                      onClick={() => setShowChartInfo(false)}
+                      className="text-blue-200 hover:text-blue-100 transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <p className="text-blue-200">This radar chart provides a comprehensive view of performance across four key metrics:</p>
+                    <div className="grid gap-3">
+                      {[
+                        {
+                          title: "Efficiency",
+                          description: "Measures tokens processed per watt, indicating energy efficiency",
+                          icon: "⚡"
+                        },
+                        {
+                          title: "Processing Speed",
+                          description: "Raw throughput in tokens per second",
+                          icon: "🚀"
+                        },
+                        {
+                          title: "Cost Efficiency",
+                          description: "Cost per million tokens processed",
+                          icon: "💰"
+                        },
+                        {
+                          title: "Power Usage",
+                          description: "Energy consumption in watts",
+                          icon: "🔋"
+                        }
+                      ].map(item => (
+                        <div key={item.title} className="bg-blue-800/30 rounded-lg p-3 flex gap-3 items-start">
+                          <span className="text-xl">{item.icon}</span>
+                          <div>
+                            <h5 className="text-blue-100 font-semibold">{item.title}</h5>
+                            <p className="text-sm text-blue-300">{item.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 bg-blue-800/20 rounded-lg p-4">
+                      <h5 className="text-blue-100 font-semibold mb-2">How to Read the Chart</h5>
+                      <ul className="list-disc list-inside space-y-2 text-sm text-blue-200">
+                        <li>Each axis represents one metric</li>
+                        <li>Larger area indicates better overall performance</li>
+                        <li>CPU metrics shown in green, GPU in orange</li>
+                        <li>Values are normalized for easy comparison</li>
+                      </ul>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
             
             <div className="space-y-12">
-              {/* Radar Chart Simulation */}
+              {/* Radar Chart */}
               <div className="relative h-80">
                 <div className="absolute inset-0 flex items-center justify-center">
-                  {[0, 1, 2, 3, 4].map((ring) => (
-                    <motion.div
-                      key={ring}
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: ring * 0.1 }}
-                      className="absolute border border-white/10 rounded-full"
-                      style={{
-                        width: `${(ring + 1) * 20}%`,
-                        height: `${(ring + 1) * 20}%`,
-                      }}
-                    />
-                  ))}
-                  
+                  {/* Background grid */}
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                    {renderGridLines(50, 50, 40).map((pathD, index) => (
+                      <path
+                        key={index}
+                        d={pathD}
+                        stroke="rgba(255,255,255,0.1)"
+                        fill="none"
+                        strokeDasharray="2"
+                      />
+                    ))}
+                    {/* Axis lines */}
+                    <line x1="50" y1="10" x2="50" y2="90" stroke="rgba(255,255,255,0.2)" />
+                    <line x1="10" y1="50" x2="90" y2="50" stroke="rgba(255,255,255,0.2)" />
+                  </svg>
+
                   {/* CPU Metrics */}
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className="absolute inset-0"
                   >
-                    <svg className="w-full h-full">
+                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
                       <motion.path
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
                         transition={{ duration: 1, ease: "easeInOut" }}
-                        d={`M ${40 + (cpuMetrics.efficiency / 2)} ${40} L ${60} ${40 + (cpuMetrics.tokensPerHour / maxTokensPerHour * 20)} L ${60} ${60} L ${40} ${60}`}
+                        d={generateRadarPoints(cpuMetrics, 50, 50, 40)}
                         fill="rgba(52, 211, 153, 0.2)"
                         stroke="#34d399"
-                        strokeWidth="2"
+                        strokeWidth="1.5"
                       />
                     </svg>
                   </motion.div>
@@ -210,15 +358,15 @@ export function TokenCosts({ selectedCPU, selectedGPU, utilizationHours }) {
                     animate={{ scale: 1 }}
                     className="absolute inset-0"
                   >
-                    <svg className="w-full h-full">
+                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
                       <motion.path
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
                         transition={{ duration: 1, ease: "easeInOut" }}
-                        d={`M ${60 + (gpuMetrics.efficiency / 2)} ${40} L ${80} ${40 + (gpuMetrics.tokensPerHour / maxTokensPerHour * 20)} L ${80} ${60} L ${60} ${60}`}
+                        d={generateRadarPoints(gpuMetrics, 50, 50, 40)}
                         fill="rgba(251, 146, 60, 0.2)"
                         stroke="#fb923c"
-                        strokeWidth="2"
+                        strokeWidth="1.5"
                       />
                     </svg>
                   </motion.div>
@@ -226,125 +374,53 @@ export function TokenCosts({ selectedCPU, selectedGPU, utilizationHours }) {
 
                 {/* Metric Labels */}
                 <div className="absolute inset-0">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 text-white/70 text-sm">
-                    Efficiency
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4">
+                    <div className="text-white/70 text-sm font-semibold">Efficiency</div>
+                    <div className="text-xs text-emerald-400">
+                      {(cpuMetrics?.efficiency || 0).toFixed(0)} vs {(gpuMetrics?.efficiency || 0).toFixed(0)} t/W·h
+                    </div>
                   </div>
-                  <div className="absolute top-1/2 right-0 translate-x-4 -translate-y-1/2 text-white/70 text-sm">
-                    Speed
+                  <div className="absolute top-1/2 right-0 translate-x-4 -translate-y-1/2">
+                    <div className="text-white/70 text-sm font-semibold">Speed</div>
+                    <div className="text-xs text-emerald-400">
+                      {(cpuMetrics?.tokensPerHour / 3600 || 0).toFixed(0)} vs {(gpuMetrics?.tokensPerHour / 3600 || 0).toFixed(0)} t/s
+                    </div>
                   </div>
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-4 text-white/70 text-sm">
-                    Cost
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-4">
+                    <div className="text-white/70 text-sm font-semibold">Cost</div>
+                    <div className="text-xs text-emerald-400">
+                      ${(cpuMetrics?.costPerToken * 1000000 || 0).toFixed(2)} vs ${(gpuMetrics?.costPerToken * 1000000 || 0).toFixed(2)}/M
+                    </div>
                   </div>
-                  <div className="absolute top-1/2 left-0 -translate-x-4 -translate-y-1/2 text-white/70 text-sm">
-                    Power
+                  <div className="absolute top-1/2 left-0 -translate-x-4 -translate-y-1/2">
+                    <div className="text-white/70 text-sm font-semibold">Power</div>
+                    <div className="text-xs text-emerald-400">
+                      {cpuMetrics?.tdp || 0}W vs {gpuMetrics?.tdp || 0}W
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Comparison Metrics */}
+              {/* Performance insights */}
               <div className="grid grid-cols-2 gap-8">
-                {[
-                  {
-                    label: 'Token Generation',
-                    cpu: cpuMetrics.efficiency,
-                    gpu: gpuMetrics.efficiency,
-                    unit: 'tokens/W·h',
-                    icon: '⚡️'
-                  },
-                  {
-                    label: 'Cost Efficiency',
-                    cpu: 1 / cpuMetrics.costPerToken,
-                    gpu: 1 / gpuMetrics.costPerToken,
-                    unit: 'tokens/$',
-                    icon: '💰'
-                  }
-                ].map(({ label, cpu, gpu, unit, icon }) => (
-                  <motion.div
-                    key={label}
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    className="relative group"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300" />
-                    <div className="relative bg-black/30 rounded-xl p-6 backdrop-blur-sm border border-white/10">
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="text-2xl">{icon}</span>
-                        <span className="text-white/70">{label}</span>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="relative h-8">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: '100%' }}
-                            className="absolute inset-y-0 left-0 bg-emerald-500/20 rounded-lg overflow-hidden"
-                          >
-                            <div className="absolute inset-0 flex items-center px-3">
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                                className="text-sm text-emerald-300"
-                              >
-                                CPU: {cpu.toFixed(2)} {unit}
-                              </motion.div>
-                            </div>
-                            <motion.div
-                              initial={{ x: '-100%' }}
-                              animate={{ x: 0 }}
-                              transition={{ duration: 1, ease: "easeOut" }}
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-400/20 to-transparent"
-                            />
-                          </motion.div>
-                        </div>
-
-                        <div className="relative h-8">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: '100%' }}
-                            className="absolute inset-y-0 left-0 bg-orange-500/20 rounded-lg overflow-hidden"
-                          >
-                            <div className="absolute inset-0 flex items-center px-3">
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                                className="text-sm text-orange-300"
-                              >
-                                GPU: {gpu.toFixed(2)} {unit}
-                              </motion.div>
-                            </div>
-                            <motion.div
-                              initial={{ x: '-100%' }}
-                              animate={{ x: 0 }}
-                              transition={{ duration: 1, ease: "easeOut" }}
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-400/20 to-transparent"
-                            />
-                          </motion.div>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Performance Score */}
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="relative mt-8"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-orange-500/10 to-purple-500/10 rounded-xl blur-xl" />
-                <div className="relative bg-black/30 rounded-xl p-6 backdrop-blur-sm border border-white/10">
-                  <div className="flex justify-between items-center">
-                    <div className="text-white/70">Overall Performance Score</div>
-                    <div className="text-3xl font-bold bg-gradient-to-r from-emerald-400 via-orange-400 to-purple-400 text-transparent bg-clip-text">
-                      {Math.round((gpuMetrics.efficiency / cpuMetrics.efficiency) * 100)}%
-                    </div>
-                  </div>
-                  <div className="text-sm text-white/50 mt-2">GPU performance relative to CPU</div>
+                <div className="bg-blue-900/30 rounded-lg p-4">
+                  <h4 className="text-blue-100 font-semibold mb-2">Performance Summary</h4>
+                  <p className="text-sm text-blue-200">
+                    The radar visualization shows relative performance across all metrics.
+                    Larger area indicates better overall performance. The {(gpuMetrics?.tokensPerHour || 0) > (cpuMetrics?.tokensPerHour || 0) ? 'GPU' : 'CPU'} 
+                    shows {Math.round(Math.abs(((gpuMetrics?.tokensPerHour || 0) / (cpuMetrics?.tokensPerHour || 1) - 1) * 100))}% 
+                    {(gpuMetrics?.tokensPerHour || 0) > (cpuMetrics?.tokensPerHour || 0) ? ' higher' : ' lower'} throughput.
+                  </p>
                 </div>
-              </motion.div>
+                <div className="bg-blue-900/30 rounded-lg p-4">
+                  <h4 className="text-blue-100 font-semibold mb-2">Cost-Efficiency Analysis</h4>
+                  <p className="text-sm text-blue-200">
+                    While the {(gpuMetrics?.tdp || 0) > (cpuMetrics?.tdp || 0) ? 'GPU' : 'CPU'} consumes more power,
+                    it achieves {Math.round(Math.abs(((gpuMetrics?.efficiency || 0) / (cpuMetrics?.efficiency || 1) - 1) * 100))}% 
+                    better tokens per watt ratio, making it more cost-effective for high-throughput workloads.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
