@@ -5,7 +5,7 @@ export function HardwareConfig({ type, selectedModel, onModelChange, specs }) {
 
   const HardwareCard = ({ model, hardware, isSelected }) => (
     <div 
-      className={`p-6 backdrop-blur-xl rounded-2xl border transition-all duration-200 cursor-pointer h-[280px] ${
+      className={`p-6 backdrop-blur-xl rounded-2xl border transition-all duration-200 cursor-pointer h-[280px] relative group ${
         isSelected 
           ? 'bg-blue-950/60 border-blue-700/50 shadow-lg' 
           : 'bg-blue-950/30 border-blue-800/20 hover:bg-blue-950/40'
@@ -63,14 +63,22 @@ export function HardwareConfig({ type, selectedModel, onModelChange, specs }) {
           </div>
         </div>
       </div>
+
+      {!isSelected && (
+        <div className="absolute inset-0 flex items-center justify-center bg-blue-950/80 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl">
+          <span className="text-blue-100 text-sm font-medium">Click to select</span>
+        </div>
+      )}
     </div>
   );
 
   return (
     <div>
-      <div className="flex items-center gap-4 mb-6">
-        <h2 className="text-2xl font-bold text-blue-50">{type} Options</h2>
-        <div className="flex-1 h-px bg-blue-800/30"></div>
+      <div className="mb-6">
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold text-blue-50">{type.toUpperCase()} Options</h2>
+          <div className="flex-1 h-px bg-blue-800/30"></div>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {Object.entries(specs).map(([model, hardware]) => (
