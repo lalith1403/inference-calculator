@@ -272,19 +272,19 @@ export function PerformanceChart({ data }) {
             <div>
               <div className="text-sm text-blue-200 mb-1">CPU Throughput</div>
               <div className="text-xl font-bold text-blue-50">
-                {formatLargeNumber(data[0]?.CPU)} tokens/sec
+                {formatLargeNumber(data[0]?.CPU / 3600)} tokens/sec
               </div>
               <div className="text-sm text-blue-200 mt-2">
-                {formatLargeNumber(data[0]?.CPU * 3600 * 24)} tokens/day
+                {formatLargeNumber(data[0]?.CPU * 24)} tokens/day
               </div>
             </div>
             <div>
               <div className="text-sm text-blue-200 mb-1">GPU Throughput</div>
               <div className="text-xl font-bold text-blue-50">
-                {formatLargeNumber(data[0]?.GPU)} tokens/sec
+                {formatLargeNumber(data[0]?.GPU / 3600)} tokens/sec
               </div>
               <div className="text-sm text-blue-200 mt-2">
-                {formatLargeNumber(data[0]?.GPU * 3600 * 24)} tokens/day
+                {formatLargeNumber(data[0]?.GPU * 24)} tokens/day
               </div>
             </div>
           </div>
